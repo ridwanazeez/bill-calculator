@@ -1,10 +1,30 @@
-<!DOCTYPE html>
-<html lang="">
+<!doctype html>
+<html lang="en-GY">
   <head>
-    <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Set the theme before first paint. Key is shared with the other ridwanazeez.com apps. -->
+    <script>
+      ;(function () {
+        var s = 'auto'
+        try {
+          s = localStorage.getItem('vueuse-color-scheme') || 'auto'
+        } catch (e) {}
+        if (s === 'dark' || (s === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
+
+    <title>Guyana Bill Calculator: count your cash</title>
+    <meta
+      name="description"
+      content="Count Guyana dollar bills. Enter how many of each note you have and the totals update as you type."
+    />
+    <meta name="author" content="Ridwan Azeez" />
+    <link rel="canonical" href="https://ridwanazeez.com/bill-calculator/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
     <div id="app"></div>

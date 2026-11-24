@@ -1,0 +1,55 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm run test:unit -- --run
+
+      - name: Build project
+        run: npm run build
+
+      # The salary calculator's FTP_DIRECTORY, or an empty one, would overwrite another site.
+      - name: Check the target directory
+        env:
+          FTP_DIRECTORY: ${{ secrets.FTP_DIRECTORY }}
+        run: |
+          case "$FTP_DIRECTORY" in
+            bill-calculator/ | */bill-calculator/) ;;
+            *) echo "::error::Set the FTP_DIRECTORY secret to a path ending in bill-calculator/"; exit 1 ;;
+          esac
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_DIRECTORY }}

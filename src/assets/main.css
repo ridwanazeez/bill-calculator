@@ -1,0 +1,104 @@
+@font-face {
+  font-family: 'Archivo';
+  font-weight: 400 900;
+  font-display: optional;
+  src: url('./fonts/archivo-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-weight: 400;
+  font-display: optional;
+  src: url('./fonts/spacemono-normal-400-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-weight: 700;
+  font-display: optional;
+  src: url('./fonts/spacemono-normal-700-latin.woff2') format('woff2');
+}
+
+/* Editorial tokens, shared with ridwanazeez.com. --note-* only tell the bills apart. */
+:root {
+  color-scheme: light;
+  --font-sans: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+  --paper: #ffffff;
+  --paper-raised: #fbfaf7;
+  --ink: #131311;
+  --ink-soft: #55534c;
+  --ink-faint: #676259;
+  --line: rgba(19, 19, 17, 0.14);
+  --line-strong: rgba(19, 19, 17, 0.9);
+  --field: #8a857b;
+  --accent: #0066ff;
+  --accent-ink: #ffffff;
+  --note-5000: #c2571a;
+  --note-2000: #2f7d4f;
+  --note-1000: #b3323a;
+  --note-500: #2b5fa8;
+  --note-100: #1f7f8c;
+  --note-50: #a87a12;
+  --note-20: #7a5638;
+}
+
+.dark {
+  color-scheme: dark;
+  --paper: #100f0d;
+  --paper-raised: #171613;
+  --ink: #f2f0ea;
+  --ink-soft: #b3b0a6;
+  --ink-faint: #8f8b81;
+  --line: rgba(242, 240, 234, 0.16);
+  --line-strong: rgba(242, 240, 234, 0.92);
+  --field: #78746b;
+  --accent: #3d82ff;
+  --accent-ink: #0b0b16;
+  --note-5000: #f08a4b;
+  --note-2000: #5cb882;
+  --note-1000: #ee7079;
+  --note-500: #6fa3ee;
+  --note-100: #55bccb;
+  --note-50: #e0b040;
+  --note-20: #bd9371;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Keeps a focused field clear of the sticky grand total. */
+html {
+  scroll-padding-bottom: 112px;
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
