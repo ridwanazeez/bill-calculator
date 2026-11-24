@@ -18,14 +18,13 @@ and apply the rest: type, spacing, contrast, hover/focus, copy, responsive check
 ## What this is
 
 A cash counter that replaces a spreadsheet. The user enters how many of each Guyanese bill they
-have; row totals, the bills total and the grand total update **as they type**. There is no
+have; row totals and the total update **as they type**. There is no
 calculate or submit button, and there must never be one.
 
 | Spreadsheet            | App                                              |
 | ---------------------- | ------------------------------------------------ |
 | BILL / AMOUNT / TOTAL  | one table row per entry in `DENOMINATIONS`       |
-| TOTAL                  | `billsTotal`: the sum of bill × amount           |
-| second, darker total   | `grandTotal`: `billsTotal` + the "Other money" field |
+| TOTAL                  | `total`: the sum of bill × amount                |
 
 Live at https://ridwanazeez.com/bill-calculator/.
 
@@ -59,7 +58,9 @@ Run unit tests, lint and build before pushing.
 ## Conventions
 
 - Money logic lives in the store, never in the template. Any change to it needs a unit test.
-- Parse at the input: counts are whole, non-negative numbers; other money has at most two decimals.
+- Parse at the input: counts are whole, non-negative numbers.
+- The page footer shows `version` from `package.json`. Bump it with
+  `npm version <patch|minor> --no-git-tag-version` on every release.
 - State persists in `localStorage` under `bill-calculator`. Treat what is read back as untrusted.
   Wrap storage access in try/catch.
 - The theme shares the `vueuse-color-scheme` key with the other ridwanazeez.com apps

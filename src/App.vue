@@ -1,14 +1,11 @@
 <script setup>
-import { ref } from 'vue'
-import { cleanMoney, parseCount, useBillsStore } from './stores/bills'
+import { computed, ref } from 'vue'
+import { version } from '../package.json'
+import { DENOMINATIONS, parseCount, useBillsStore } from './stores/bills'
 
 const bills = useBillsStore()
 
-const number = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  trailingZeroDisplay: 'stripIfInteger',
-})
+const number = new Intl.NumberFormat('en-US')
 const money = (amount) => `$${number.format(amount)}`
 
 // Writes the cleaned value back, since Vue won't re-render when the state didn't change.
@@ -16,19 +13,33 @@ function onCount(event, denomination) {
   bills.counts[denomination] = parseCount(event.target.value)
   event.target.value = bills.counts[denomination] || ''
 }
-function onOther(event) {
-  bills.other = cleanMoney(event.target.value)
-  event.target.value = bills.other
-}
 
-/** One offset edge per bill, up to five, so the note looks like a pile. */
-function pile(count) {
-  const edges = Math.max(0, Math.min(count, 5) - 1)
-  return Array.from({ length: edges }, (_, i) => {
-    const y = (i + 1) * 3
-    return `0 ${y - 1}px 0 var(--paper), 0 ${y}px 0 var(--note)`
-  }).join(', ')
+/** Engraved rosette: one line that closes after eight turns. `waves` must be odd. */
+function rosette(waves) {
+  const steps = 960
+  const points = Array.from({ length: steps }, (_, i) => {
+    const angle = (i / steps) * 16 * Math.PI
+    const radius = 33 + 15 * Math.sin((angle * waves) / 8)
+    return `${(radius * Math.cos(angle)).toFixed(1)} ${(radius * Math.sin(angle)).toFixed(1)}`
+  })
+  return `M${points.join('L')}Z`
 }
+// A different rosette for each bill.
+const rosettes = Object.fromEntries(DENOMINATIONS.map((d, i) => [d, rosette(67 - i * 8)]))
+
+const MAX_SHEETS = 60
+/** The pile, bottom sheet first: one sheet per bill, scaled down past MAX_SHEETS. */
+const sheets = computed(() => {
+  const scale = Math.min(1, MAX_SHEETS / bills.billCount)
+  return bills.rows.flatMap(({ value, count }) =>
+    Array.from({ length: count && Math.max(1, Math.round(count * scale)) }, (_, i) => ({
+      key: `${value}-${i}`,
+      value,
+      nudge: `${((i * 37 + value) % 11) - 5}px`,
+    })),
+  )
+})
+const topBill = computed(() => sheets.value.at(-1)?.value)
 
 function clear() {
   if (window.confirm('Clear every amount?')) bills.clear()
@@ -63,22 +74,29 @@ function toggleTheme() {
         <thead>
           <tr>
             <th scope="col">Bill</th>
-            <th scope="col" class="center">Amount</th>
-            <th scope="col" class="right">Total</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Total</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in bills.rows" :key="row.value" :class="{ empty: !row.count }">
+          <tr
+            v-for="row in bills.rows"
+            :key="row.value"
+            :class="{ filled: row.count }"
+            :style="{ '--note': `var(--note-${row.value})` }"
+          >
             <th scope="row">
-              <span
-                class="note"
-                :style="{ '--note': `var(--note-${row.value})`, boxShadow: pile(row.count) }"
-                >{{ money(row.value) }}</span
-              >
+              <span class="face">
+                <span class="engraving" aria-hidden="true">
+                  <svg class="rosette" viewBox="-50 -50 100 100">
+                    <path :d="rosettes[row.value]" />
+                  </svg>
+                </span>
+                <span class="value">{{ money(row.value) }}</span>
+              </span>
             </th>
-            <td class="center">
+            <td>
               <input
-                class="count"
                 type="text"
                 inputmode="numeric"
                 autocomplete="off"
@@ -89,48 +107,60 @@ function toggleTheme() {
                 @focus="$event.target.select()"
               />
             </td>
-            <td class="right figure">{{ row.total ? money(row.total) : '-' }}</td>
+            <td class="row-total">{{ row.total ? money(row.total) : '-' }}</td>
           </tr>
         </tbody>
       </table>
 
-      <section class="summary" aria-label="Totals">
-        <p class="line">
-          <span>Bills total</span>
-          <output class="figure" data-testid="bills-total">{{ money(bills.billsTotal) }}</output>
-        </p>
-        <p class="line">
-          <label for="other">Other money</label>
-          <span class="other">
-            <span aria-hidden="true">$</span>
-            <input
-              id="other"
-              type="text"
-              inputmode="decimal"
-              autocomplete="off"
-              placeholder="0"
-              :value="bills.other"
-              @input="onOther"
-              @focus="$event.target.select()"
-            />
-          </span>
+      <div class="pile" aria-hidden="true">
+        <svg
+          class="top"
+          :class="{ blank: !topBill }"
+          viewBox="0 0 300 56"
+          preserveAspectRatio="none"
+          :style="topBill && { '--note': `var(--note-${topBill})` }"
+        >
+          <path class="top-paper" d="M34 1H266L299 55H1Z" />
+          <path class="top-frame" d="M42 8H258L281 48H19Z" />
+          <g transform="translate(150 28) scale(1 0.34)">
+            <path class="top-rosette" :d="rosettes[topBill ?? DENOMINATIONS[0]]" />
+          </g>
+        </svg>
+        <TransitionGroup tag="div" name="sheet" class="sheets">
+          <i
+            v-for="sheet in sheets"
+            :key="sheet.key"
+            :style="{ '--note': `var(--note-${sheet.value})`, '--nudge': sheet.nudge }"
+          ></i>
+        </TransitionGroup>
+      </div>
+
+      <section class="summary" aria-label="Summary">
+        <p>
+          <output data-testid="bill-count">{{ number.format(bills.billCount) }}</output>
+          {{ bills.billCount === 1 ? 'bill' : 'bills' }}
         </p>
         <button type="button" class="text-button" @click="clear">Clear amounts</button>
       </section>
 
-      <p class="grand">
-        <span>Grand total</span>
-        <output data-testid="grand-total">{{ money(bills.grandTotal) }}</output>
+      <p class="grand" :style="{ '--chars': money(bills.total).length }">
+        <span>Total</span>
+        <output data-testid="total">{{ money(bills.total) }}</output>
       </p>
     </main>
+
+    <footer>Version {{ version }}</footer>
   </div>
 </template>
 
 <style scoped>
 .page {
-  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  max-width: 1160px;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 16px;
 }
 
 header {
@@ -138,12 +168,12 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 28px 0 20px;
+  padding: 20px 0 8px;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -151,69 +181,108 @@ h1 {
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+  font-variant-numeric: tabular-nums;
 }
 
 thead th {
-  padding: 8px 0;
-  border-bottom: 2px solid var(--line-strong);
+  padding: 4px 0;
+  color: var(--ink-soft);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
+}
+thead th:first-child {
+  width: 35%;
+  padding-left: 12px;
   text-align: left;
 }
-
-tbody th,
-tbody td {
-  height: 68px;
-  padding: 0;
-  border-bottom: 1px solid var(--line);
-  font-weight: 400;
-  text-align: left;
+thead th:nth-child(2) {
+  width: 24%;
 }
-
-/* Two-class selectors so these beat the table cell defaults above. */
-table .center {
-  text-align: center;
-}
-table .right {
+thead th:last-child {
+  padding-right: 12px;
   text-align: right;
 }
 
-.figure {
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
+/* Each row is a note: pale until you have some, then it fills with its ink. */
+tbody th,
+tbody td {
+  height: clamp(64px, 9.4dvh, 100px);
+  padding: 0;
+  background: color-mix(in srgb, var(--note) var(--note-tint), var(--paper));
+  color: var(--ink);
+  text-align: center;
+  transition:
+    background-color 0.25s ease-out,
+    color 0.25s ease-out;
+}
+tbody th {
+  border-radius: 8px 0 0 8px;
+}
+tbody td:last-child {
+  border-radius: 0 8px 8px 0;
+}
+.filled th,
+.filled td {
+  background: var(--note);
+  color: var(--note-ink);
 }
 
-.empty .figure {
-  color: var(--ink-faint);
+.face {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 100%;
+  padding-left: 12px;
 }
-
-.note {
-  display: inline-grid;
-  place-items: center;
-  width: 76px;
-  height: 36px;
-  border: 1px solid var(--note);
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--note) 22%, var(--paper));
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.9375rem;
-  transition: box-shadow 0.2s ease-out;
+.value {
+  position: relative;
+  font-size: clamp(1.25rem, 5.6vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
 }
-
-.empty .note {
-  background: transparent;
+/* Spans the row so the rosette can sit behind the amount, clipped to the note. */
+.engraving {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(100% / 0.35);
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.rosette {
+  position: absolute;
+  top: 50%;
+  left: 47%;
+  height: 200%;
+  aspect-ratio: 1;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.35;
+  opacity: 0.3;
+  transform: translate(-50%, -50%);
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.filled .rosette {
+  opacity: 0.5;
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 input {
-  height: 44px;
+  position: relative; /* above the engraving */
+  width: min(100%, 104px);
+  height: 48px;
   border: 1px solid var(--field);
-  border-radius: 3px;
-  background: var(--paper-raised);
+  border-radius: 6px;
+  background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 1.0625rem;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
   transition: border-color 0.15s ease-out;
 }
 input:hover {
@@ -221,34 +290,101 @@ input:hover {
 }
 input::placeholder {
   color: var(--ink-faint);
+  font-weight: 400;
   opacity: 1;
 }
-
-.count {
-  width: 88px;
-  text-align: center;
+.filled input {
+  border-color: transparent;
+}
+.filled input:focus-visible {
+  outline-color: var(--note-ink);
 }
 
-.line {
+tbody .row-total {
+  padding: 0 12px 0 4px;
+  font-size: clamp(0.9375rem, 3.6vw, 1.25rem);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* The pile grows a sheet per bill, coloured by the bill. */
+.pile {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: min(100%, 340px);
+  height: 260px;
+  margin: 20px auto 0;
+}
+.top {
+  flex: none;
+  width: calc(100% - 12px);
+  height: 56px;
+  margin: 0 6px -1px;
+  fill: none;
+}
+.top path {
+  transition:
+    fill 0.25s ease-out,
+    stroke 0.25s ease-out;
+}
+.top-paper {
+  fill: var(--note);
+}
+.top-frame,
+.top-rosette {
+  stroke: var(--note-ink);
+  opacity: 0.6;
+}
+.top-rosette {
+  stroke-width: 0.5;
+}
+.top.blank path {
+  stroke: var(--field);
+  stroke-dasharray: 4 3;
+}
+.blank .top-paper {
+  fill: none;
+}
+.top.blank .top-rosette {
+  stroke-dasharray: none;
+}
+.sheets {
+  display: flex;
+  flex-direction: column-reverse;
+  min-height: 0;
+  padding: 0 6px;
+}
+.sheets i {
+  flex: 0 1 9px;
+  min-height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(
+    color-mix(in srgb, var(--note) 45%, var(--note-ink)) 30%,
+    var(--note) 30%
+  );
+  transform: translateX(var(--nudge));
+}
+.sheet-enter-active {
+  transition:
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1),
+    opacity 0.15s ease-out;
+}
+.sheets .sheet-enter-from {
+  opacity: 0;
+  transform: translate(var(--nudge), -36px);
+}
+
+.summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 60px;
+  padding: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+.summary p {
   margin: 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.other {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-}
-.other input {
-  width: 160px;
-  padding: 0 12px;
-  text-align: right;
 }
 
 .text-button {
@@ -275,58 +411,95 @@ input::placeholder {
 /* Stays in view while counting on a phone. */
 .grand {
   position: sticky;
+  z-index: 1;
   bottom: 0;
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0 16px;
-  margin: 12px -20px 0;
-  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
-  background: var(--accent);
-  color: var(--accent-ink);
+  gap: 16px;
+  margin: 8px -16px 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--ink);
+  color: var(--paper);
 }
 .grand span {
   font-weight: 600;
 }
 .grand output {
   font-size: clamp(1.75rem, 8vw, 2.25rem);
-  font-weight: 800;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   line-height: 1.1;
 }
 
+footer {
+  margin-top: auto;
+  padding: 16px 0 20px;
+  color: var(--ink-faint);
+  font-size: 0.8125rem;
+}
+
 @media (min-width: 860px) {
+  .page {
+    padding: 0 32px;
+  }
   header {
-    padding: 48px 0 32px;
+    padding: 32px 0 20px;
   }
   main {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
-    grid-template-rows: auto 1fr;
-    column-gap: 72px;
-    padding-bottom: 64px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    column-gap: 56px;
   }
   table {
-    grid-row: 1 / 3;
+    grid-row: 1 / 4;
+  }
+  thead th:first-child,
+  .face {
+    padding-left: 24px;
+  }
+  thead th:last-child,
+  tbody .row-total {
+    padding-right: 24px;
+  }
+  .rosette {
+    height: 270%;
+  }
+  .grand,
+  .pile,
+  .summary {
+    grid-column: 2;
   }
   .grand {
     position: static;
-    grid-column: 2;
+    display: block;
     grid-row: 1;
-    flex-direction: column;
-    margin: 0 0 8px;
-    padding: 24px;
-    border-radius: 3px;
+    margin: 0;
+    padding: 6px 0 0;
+    background: none;
+    color: inherit;
+    container-type: inline-size;
   }
   .grand output {
-    font-size: 2.5rem;
-    overflow-wrap: anywhere;
+    display: block;
+    /* Shrinks so the longest total still fits on one line. */
+    font-size: min(5rem, calc(100cqi / (var(--chars) * 0.58)));
+    line-height: 1.1;
+  }
+  .pile {
+    grid-row: 2;
+    /* Fills the column without stretching the rows. */
+    contain: size;
+    width: 100%;
+    height: auto;
+    min-height: 200px;
+    border-bottom: 3px solid var(--ink);
   }
   .summary {
-    grid-column: 2;
-    grid-row: 2;
+    grid-row: 3;
+    padding: 8px 0 0;
   }
 }
 </style>

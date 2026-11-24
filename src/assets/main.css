@@ -4,62 +4,40 @@
   font-display: optional;
   src: url('./fonts/archivo-latin.woff2') format('woff2');
 }
-@font-face {
-  font-family: 'Space Mono';
-  font-weight: 400;
-  font-display: optional;
-  src: url('./fonts/spacemono-normal-400-latin.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Space Mono';
-  font-weight: 700;
-  font-display: optional;
-  src: url('./fonts/spacemono-normal-700-latin.woff2') format('woff2');
-}
 
-/* Editorial tokens, shared with ridwanazeez.com. --note-* only tell the bills apart. */
+/* Editorial tokens, shared with ridwanazeez.com. Every --note-* carries --note-ink text at 4.5:1 or better,
+   in both themes. */
 :root {
   color-scheme: light;
   --font-sans: 'Archivo', system-ui, sans-serif;
-  --font-mono: 'Space Mono', ui-monospace, monospace;
   --paper: #ffffff;
-  --paper-raised: #fbfaf7;
   --ink: #131311;
   --ink-soft: #55534c;
   --ink-faint: #676259;
   --line: rgba(19, 19, 17, 0.14);
-  --line-strong: rgba(19, 19, 17, 0.9);
   --field: #8a857b;
   --accent: #0066ff;
-  --accent-ink: #ffffff;
-  --note-5000: #c2571a;
-  --note-2000: #2f7d4f;
-  --note-1000: #b3323a;
-  --note-500: #2b5fa8;
-  --note-100: #1f7f8c;
-  --note-50: #a87a12;
-  --note-20: #7a5638;
+  --note-ink: #ffffff;
+  --note-tint: 13%;
+  --note-5000: #c8430b;
+  --note-2000: #0b7a45;
+  --note-1000: #b8123f;
+  --note-500: #2447b8;
+  --note-100: #0a7480;
+  --note-50: #8f6400;
+  --note-20: #6b4a35;
 }
 
 .dark {
   color-scheme: dark;
   --paper: #100f0d;
-  --paper-raised: #171613;
   --ink: #f2f0ea;
   --ink-soft: #b3b0a6;
   --ink-faint: #8f8b81;
   --line: rgba(242, 240, 234, 0.16);
-  --line-strong: rgba(242, 240, 234, 0.92);
   --field: #78746b;
   --accent: #3d82ff;
-  --accent-ink: #0b0b16;
-  --note-5000: #f08a4b;
-  --note-2000: #5cb882;
-  --note-1000: #ee7079;
-  --note-500: #6fa3ee;
-  --note-100: #55bccb;
-  --note-50: #e0b040;
-  --note-20: #bd9371;
+  --note-tint: 30%;
 }
 
 *,
